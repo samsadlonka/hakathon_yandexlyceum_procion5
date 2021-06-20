@@ -1,0 +1,61 @@
+import json
+from math import sqrt
+
+
+def make_draft(data: dict) -> dict:
+    draft = {}
+    # TODO: Make draft here
+    return draft
+
+
+# --------------- Вспомогательные функции ------------------------ #
+
+def give_num_from_str(coor: str) -> list:
+    return list(map(lambda x: int(x), coor.split('/')))
+
+
+def give_str_from_num(coor: list) -> str:
+    return '/'.join(list(map(lambda x: str(x), coor)))
+
+
+def found_nearest_goal(our_ship_coor: str, ships_enemy: list[str]) -> dict:
+    """Возвращает ближайшую цель для одного из наших кораблей"""
+    x_our, y_our, z_our = give_num_from_str(our_ship_coor)
+    distance_to_enemy_ship = []
+    for ship_opponent in ships_enemy:
+        x, y, z = list(map(lambda coor: int(coor), ship_opponent["Position"].split('/')))
+        distance_to_enemy_ship.append({
+            'coor_opponent': f'{x}/{y}/{z}',
+            'distance': sqrt((x - x_our) ** 2 + (y - y_our) ** 2 + (z - z_our) ** 2)
+        })
+    return min(distance_to_enemy_ship, key=lambda x: x['distance'])
+
+
+def give_overall_goal_for_all_our_ships(our_ships: list, enemy_ships: list) -> dict:
+    """Возвращает цель, которая была у большинства ближней"""
+    nearest_goals = [found_nearest_goal(ship, enemy_ships) for ship in our_ships]
+    return max(set(nearest_goals), key=nearest_goals.count)
+
+# -------------- Вспомогательные функции END --------------------- #
+
+
+def make_turn(data: dict) -> dict:
+    battle_output = {
+        'Message': f"I have {len(data['My'])} ships and move to center of galaxy and shoot",
+        'UserCommands': []
+    }
+    return battle_output
+
+
+def play_game():
+    while True:
+        raw_line = input()
+        line = json.loads(raw_line)
+        if 'PlayerId' in line:
+            print(json.dumps(make_draft(line), ensure_ascii=False))
+        elif 'My' in line:
+            print(json.dumps(make_turn(line), ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    play_game()
