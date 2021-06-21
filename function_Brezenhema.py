@@ -32,8 +32,25 @@ def func(x0, y0, x1, y1): #x0, yo - координаты начала, x1, y1 - 
             x = x + dirx
             error = error - (deltay + 1)
     return arr
-
+def f(x0, y0, z0, x1, y1, z1):
+    z = func(x0, y0, x1, y1)
+    y = func(x0, z0, x1, z1)
+    arr = []
+    for i in z:
+        for j in y:
+            if i[0] == j[0]:
+                arr.append(i[:2] + [j[1]])
+    x = func(z0, y0, z1, y1)
+    for i in z:
+        for j in x:
+            if i[1] == j[1] and i[:2] + [j[0]] not in arr:
+                arr.append(i[:2] + [j[0]])
+    for i in y:
+        for j in x:
+            if i[1] == j[0] and [i[0], j[1], j[0]] not in arr:
+                arr.append([i[0], j[1], j[0]])
+    return arr
 if __name__ == '__main__':
-    p = func(1, 5, 11, 1)
+    p = f(1, 1, 3, 3, 4, 4) #[[x, y, z], ...] координаты которые пересекает луч
     p.sort()
     print(p)
