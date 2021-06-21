@@ -153,8 +153,7 @@ def make_first_turn(data: dict) -> dict:
 def play_game():
     first = True
     while True:
-        raw_line = input()
-        line = json.loads(raw_line)
+        line = json.loads(input())
         if 'PlayerId' in line:
             print(json.dumps(make_draft(line), ensure_ascii=False))
         elif 'My' in line and first:
