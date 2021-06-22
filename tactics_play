@@ -1,0 +1,154 @@
+import json
+from math import sqrt
+
+
+def make_draft(data: dict) -> dict:
+    draft = {}
+    health = 2
+    if len(data["CompleteShips"]) > int(data["MaxShipsCount"]):
+        for ship in data['CompleteShips']:
+            if ship['Id'].lower() == 'daedalus' and health > 0:
+                draft['Ships'].append({
+                    'CompleteShipId': ship['Id']
+                })
+                health -= 1
+            if ship['Id'].lower() == 'forward':
+                draft['Ships'].append({
+                    'CompleteShipId': ship['Id']
+                })
+    # TODO: Make draft here
+    return draft
+
+
+# --------------- Вспомогательные функции ------------------------ #
+
+def give_num_from_str(coor: str) -> list:
+    return list(map(lambda x: int(x), coor.split('/')))
+
+
+def give_str_from_num(coor: list) -> str:
+    return '/'.join(list(map(lambda x: str(x), coor)))
+
+
+def get_distance_to_enemy(my_ship, ships_opponent):
+    """Возвращает отсортированные расстояния от нашего корабля к вражеским"""
+    x_our, y_our, z_our = give_num_from_str(my_ship['Position'])
+    distances_to_enemy_ship = []
+    for ship_opponent in ships_opponent:
+        x, y, z = give_num_from_str(ship_opponent['Position'])
+        distances_to_enemy_ship.append({
+            'coor_opponent': f'{x}/{y}/{z}',
+            'distance': sqrt((x - x_our) ** 2 + (y - y_our) ** 2 + (z - z_our) ** 2)
+        })
+    distances_to_enemy_ship.sort(key=lambda obj: obj['distance'])
+    return distances_to_enemy_ship
+
+
+def give_distances_to_other_points(one_point, points):
+    """Возвращает расстояния от одной точки до нескольких других"""
+    x_our, y_our, z_our = give_num_from_str(one_point)
+    distances_to_points = []
+    for point in points:
+        x, y, z = point
+        distances_to_points.append({
+            'coor_opponent': [x, y, z],
+            'distance': sqrt((x - x_our) ** 2 + (y - y_our) ** 2 + (z - z_our) ** 2)
+        })
+    return distances_to_points
+
+
+def found_nearest_goal(our_ship_point, ships_enemy):
+    """Возвращает ближайшую цель для одного из наших кораблей"""
+    ships_enemy = [give_num_from_str(ship['Position']) for ship in ships_enemy]
+    distances_to_enemy_ship = give_distances_to_other_points(our_ship_point, ships_enemy)
+    return min(distances_to_enemy_ship, key=lambda x: x['distance'])
+
+
+def give_overall_goal_for_all_our_ships(our_ships, enemy_ships):
+    """Возвращает цель, которая была у большинства ближней"""
+    nearest_goals = [give_str_from_num(found_nearest_goal(ship['Position'], enemy_ships)['coor_opponent'])
+                     for ship in our_ships]
+    return give_num_from_str(max(set(nearest_goals), key=nearest_goals.count))
+
+
+def get_point_retreat(my_ship, enemy_ship):
+    """Возвращает точку отхода относительно врага"""
+    my_ship, enemy_ship = give_num_from_str(my_ship), give_num_from_str(enemy_ship)
+    point_retreat = []
+    for i in range(3):
+        if my_ship[i] < enemy_ship[i]:
+            point_retreat.append(my_ship[i] - 2)
+        else:
+            point_retreat.append(my_ship[i] + 2)
+    return give_str_from_num(point_retreat)
+
+# -------------- Вспомогательные функции END --------------------- #
+
+
+def make_turn(data: dict, target) -> dict:
+    battle_output = {
+        'Message': '',
+        'UserCommands': []
+    }
+    if target == '' or target not in [ship_enemy['Position'] for ship_enemy in data['Opponent']]:
+        target = give_str_from_num(
+            give_overall_goal_for_all_our_ships(data['My'], data['Opponent']))
+
+    for ship in data['My']:
+        ship_do_move = True
+        distances_ship = get_distance_to_enemy(ship, data['Opponent'])
+        distance_to_target = list(filter(lambda x: x['coor_opponent'] == target, distances_ship))[0]
+        guns = [x for x in ship['Equipment'] if x['Type'] == 1]
+        if distance_to_target['distance'] > 6 and guns:
+            battle_output['UserCommands'].append({
+                "Command": "ATTACK",
+                "Parameters": {
+                    'Id': ship['Id'],
+                    'Name': guns[0]['Name'],
+                    'Target': distances_ship[0]['coor_opponent']
+                }
+            })
+        else:
+            battle_output['UserCommands'].append({
+                "Command": "ATTACK",
+                "Parameters": {
+                    'Id': ship['Id'],
+                    'Name': guns[0]['Name'],
+                    'Target': target
+                }
+            })
+
+            battle_output['UserCommands'].append({
+                "Command": "MOVE",
+                "Parameters": {
+                    'Id': ship['Id'],
+                    'Target': get_point_retreat(ship['Position'], target)
+                }
+            })
+            ship_do_move = False
+        if ship_do_move:
+            battle_output['UserCommands'].append({
+                "Command": "MOVE",
+                "Parameters": {
+                    'Id': ship['Id'],
+                    'Target': target
+                }
+            })
+
+    battle_output['Message'] = target
+    return battle_output
+
+
+def play_game():
+    target = ''
+    while True:
+        raw_line = input()
+        line = json.loads(raw_line)
+        if 'PlayerId' in line:
+            print(json.dumps(make_draft(line), ensure_ascii=False))
+        elif 'My' in line:
+            print(json.dumps(make_turn(line, target), ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    play_game()
